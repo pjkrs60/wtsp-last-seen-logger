@@ -16,6 +16,7 @@ def main():
     
     options = webdriver.ChromeOptions()
     options.add_argument(chrome_user_data_path)
+    options.add_argument('log-level=3')
     options.add_experimental_option("excludeSwitches", ['enable-automation'])
     driver = webdriver.Chrome(options=options)
     driver.set_window_size(690,250) # minimizes window size
@@ -29,7 +30,7 @@ def main():
     current_time = str(datetime.now())
     backup_log(current_time)
     print("Started at:", current_time[:19])
-    c = 0
+    c, _c = 0, 0
     cls_cnt, beep_count, beep_count_online, beep_count_start = 0, 0, 0, 0
     
     while True: # time offset in current time is to remove wait time for online status to appear/disappear
@@ -37,22 +38,19 @@ def main():
         if ">online</span>" in driver.page_source:
             if not bool(c):
                 online_time = datetime.now() - timedelta(seconds = 3)
-                print(online_time)
                 current_time = str(online_time)
                 log_online(current_time)
             c = 1
         else:
             if bool(c):
                 offline_time = datetime.now() - timedelta(seconds = 15)
-                current_time = str(online_time)
+                current_time = str(offline_time)
                 timespan = str(offline_time - online_time) # timespan is the time for which target was online
                 log_offline(current_time, timespan)
-                try:
-                    telegram_send(current_time[11:16])
-                except Exception as e:
-                    print("\nTelegram error:\n", e, "\n#####")
+                try: telegram_send(current_time[11:16])
+                except: pass
             c = 0
-        if current_time[11] == "0": cls_cnt = daily_cron(current_time, cls_cnt)
+        if current_time[11:13] == "02": cls_cnt = daily_cron(current_time, cls_cnt)
         if 'QdF">Phone not connected</div>' in driver.page_source:
             log_net_online(current_time, 0)
             beep_count += 1
@@ -69,8 +67,10 @@ def main():
                 timespan = str(datetime.now() - net_offline_time)
                 to_write = "\t" + current_time[11:19] + "\t" + timespan[:7]
                 print(to_write)
-                with open("./dat/data.txt", "a", encoding = "utf8") as file: file.write(to_write + "\n")
+                write_log(to_write + "\n")
                 beep_count_online = 1
+        _c += 1
+        if not bool(_c % 30): driver.find_element_by_xpath("//div[@spellcheck='true']").click()
         sleep(check_interval)
         
 def backup_log(current_time): # backs up last log file at every program run
@@ -80,7 +80,7 @@ def backup_log(current_time): # backs up last log file at every program run
         a = open("./dat/data.txt", "r", encoding = "utf8").read()
         with open(nam, "w", encoding = 'utf8') as file: file.write(a)
     except:
-        with open("./dat/data.txt", "a", encoding = "utf8") as file: file.write(init_line + start_date)
+        write_log(start_date)
 
 def clear_screen(): # works only in spyder ide (clears ipython console every 24 hrs)
     try:
@@ -90,25 +90,25 @@ def clear_screen(): # works only in spyder ide (clears ipython console every 24 
         print("###\nError: ", e)
         
 def daily_cron(current_time, cls_cnt): # to add date to log file once everyday
-    if current_time[11:13] == "01" and cls_cnt == 0:
-        cls_cnt = 1
+    if current_time[11:13] == "02" and cls_cnt == 0:
         clear_screen()
         print("# CLEANED")
         to_write = "\n\n##########\n" + current_time[:10] + "\n"
-        with open("./dat/data.txt", "a", encoding = "utf8") as file: file.write(to_write)
+        write_log(to_write)
+        print(to_write)
         return 1
-    elif current_time[11:13] == "02" and cls_cnt == 1:
+    elif current_time[11:13] == "03" and cls_cnt == 1:
         return 0
 
 def log_online(current_time): # logs when target comes online
     to_write = current_time[11:19] + "\t|"
     print(to_write, end = "")
-    with open("./dat/data.txt", "a", encoding = "utf8") as file: file.write(to_write)
+    write_log(to_write)
     
 def log_offline(current_time, timespan): # logs when target goes offline
     to_write = "\t" + current_time[11:19] + "\t" + timespan[2:7]
     print(to_write)
-    with open("./dat/data.txt", "a", encoding = "utf8") as file: file.write(to_write + "\n")
+    write_log(to_write + "\n")
     
 def log_net_online(current_time, beeper):
     global beep_count_online, beep_count_start, net_offline_time
@@ -117,10 +117,13 @@ def log_net_online(current_time, beeper):
         net_offline_time = datetime.now()
         to_write = "### " + current_time[11:19]  + "\t|"
         print(to_write, end = '')
-        with open("./dat/data.txt", "a", encoding = "utf8") as file: file.write(to_write)
+        write_log(to_write)
     if beep_count % beeper_interval == 0:
         if bool(beeper): beep2()
         else: beep()
+        
+def write_log(msg):
+    with open("./dat/data.txt", "a", encoding = "utf8") as file: file.write(msg)
     
 def telegram_send(msg): # sends last seen time to user via telegram bot & deletes previous last seen
     telegram_api_url_send = telegram_api_url + "sendMessage?chat_id={}&text={}".format(telegram_chat_id, msg)
@@ -128,11 +131,13 @@ def telegram_send(msg): # sends last seen time to user via telegram bot & delete
     
     msg_id = int(response_send['result']['message_id']) - 1
     telegram_api_url_del = telegram_api_url + "deleteMessage?chat_id={}&message_id={}".format(telegram_chat_id, msg_id)
-    response_del = post(telegram_api_url_del).json()
+    response = post(telegram_api_url_del)
+    response.close()
     for i in range(1,4):
-        if response_del != {"ok":True, "result":True}: # If deletion fails
+        if response.json() != {"ok":True, "result":True}: # If deletion fails
             telegram_api_url_del = telegram_api_url + "deleteMessage?chat_id={}&message_id={}".format(telegram_chat_id, msg_id - i)
-            response_del = post(telegram_api_url_del).json()
+            response = post(telegram_api_url_del)
+            response.close()
             sleep(0.5)
         else: break
 
@@ -158,7 +163,7 @@ if __name__ == "__main__":
     
     # Leave following at default unless errors occur
     profile_number = "10" # Chrome profile number to save data in
-    login_timeout = 20 # timeout to wait until whatsapp web starts (in seconds)
+    login_timeout = 30 # timeout to wait until whatsapp web starts (in seconds)
     beeper_interval = 15 # (in seconds)
     check_interval = 1 # time to wait before each check (in seconds)
     
