@@ -159,7 +159,6 @@ if __name__ == "__main__":
     contact = "<target_contact_name>" # Contact who's status it to be tracked
     telegram_chat_id = "<your_telegram_chat_id>" # Get chat id using telegram api's getupdates method
     telegram_bot_token = "<telegram_bot_token>" # Provided by Botfather
-    windows_username = "username" # windows_username
     
     # Leave following at default unless errors occur
     profile_number = "10" # Chrome profile number to save data in
@@ -168,6 +167,7 @@ if __name__ == "__main__":
     check_interval = 1 # time to wait before each check (in seconds)
     
     try:
+        windows_username = getuser()  # get user username
         chrome_user_data_path = r"user-data-dir=C:\Users\{}\AppData\Local\Google\Chrome\User Data\Profile {}".format(windows_username, profile_number)
         telegram_api_url = "https://api.telegram.org/bot{}/".format(telegram_bot_token)
         beeper_interval *= (1 / check_interval)
