@@ -75,7 +75,6 @@ def main():
                 try: telegram_send(current_time[11:16], 1)
                 except Exception as e: write_log("### " + current_time[11:19] + ' ' + str(e))
             c = 0
-        if current_time[11:13] == "02": cls_cnt = daily_cron(current_time, cls_cnt)
         if 'QdF">Phone not connected</div>' in driver.page_source:
             log_net_err(current_time, 0)
         elif 'F">Computer not' in driver.page_source:
@@ -94,6 +93,7 @@ def main():
                 net_error_count_online = 1
         _c += 1
         main_error_count, old_error, startup_error_count = 0, '', 0
+        if current_time[11:13] == "00": cls_cnt = daily_cron(current_time, cls_cnt)
         if not bool(_c % 30): driver.find_element_by_xpath("//div[@spellcheck='true']").click()
         sleep(check_interval)
 
