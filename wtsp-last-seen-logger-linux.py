@@ -51,7 +51,8 @@ def main():
         write_log("### " + current_time[:19] + "Contact not found !!!")
         telegram_send("Contact not found !!!", 0)
         from sys import exit; exit()
-    driver.find_element_by_class_name('_1QWS8').click()
+    try: driver.find_element_by_class_name('_1QWS8').click() # clicks the X after searching
+    except: pass
 
     c, _c = 0, 0
     current_time = str(datetime.now())
