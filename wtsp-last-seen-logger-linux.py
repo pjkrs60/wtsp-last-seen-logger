@@ -95,7 +95,8 @@ def main():
         _c += 1
         main_error_count, old_error, startup_error_count = 0, '', 0
         if current_time[11:13] == "00": cls_cnt = daily_cron(current_time, cls_cnt)
-        try: if not bool(_c % 30): driver.find_element_by_xpath("//div[@spellcheck='true']").click() # to prevent connections from sleeping
+        try: # to prevent connections from sleeping
+            if not bool(_c % 30): driver.find_element_by_xpath('//span[contains(text(),"TODAY")]').click()
         except: pass
         sleep(check_interval)
 
