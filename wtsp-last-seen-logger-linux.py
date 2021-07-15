@@ -32,7 +32,7 @@ def main():
             WebDriverWait(driver, login_timeout).until(EC.element_to_be_clickable((By.CLASS_NAME, 'selectable-text'))).send_keys(contact)
             break
         except:
-            write_log("### " + current_time[:19] + ' NET ERROR' + '\n')
+            if bool(startup_error_count): write_log("### " + current_time[:19] + ' NET ERROR' + '\n')
             if not bool(startup_error_count): since_time = current_time[11:16]
             telegram_error_notify('NET FATAL ERROR since ' + since_time)
             startup_error_count += 1
@@ -48,7 +48,7 @@ def main():
     # driver.find_element_by_class_name('selectable-text').send_keys(Keys.RETURN)
     try:
         if vlog: print('Contact selection')
-        for element in driver.find_elements_by_css_selector('._ccCW.FqYAR.i0jNr'): # WTSP KEEPS CHANGING 1
+        for element in driver.find_elements_by_css_selector('._ccCW.FqYAR.i0jNr'):
             if contact in str(element.get_attribute('title')):
                 sleep(1)
                 for i in range(2):
@@ -60,7 +60,7 @@ def main():
         write_log("### " + current_time[:19] + " Contact not found")
         telegram_send("Contact not found", 0)
         from sys import exit; exit()
-    try: driver.find_element_by_class_name('_28-cz').click() # clicks the back arrow after searching # WTSP KEEPS CHANGING 2
+    try: driver.find_element_by_class_name('_28-cz').click() # clicks the back arrow after searching
     except: pass
 
     c, _c = 0, 0
@@ -193,25 +193,30 @@ def telegram_error_notify(err):
 
 def telegram_send(msg, _del): # sends last seen time to user via telegram bot & deletes previous last seen
     global msg_id
-    if _del < 2:
+    if _del < 3: # < 2
         telegram_api_url_send = telegram_api_url + "sendMessage?chat_id={}&text={}".format(telegram_chat_id, str(msg))
-        try: response_send = post(telegram_api_url_send).json()
-        except: return
+        try:
+            response_send = post(telegram_api_url_send).json()
+            response_send.close()
+        except: pass
     if bool(_del):
         # if _del < 2: msg_id = int(response_send['result']['message_id']) - 1
-        if _del < 2: msg_id = int(response_send['result']['message_id']) - 3
-        else: msg_id -= 3
-        try: telegram_api_url_del = telegram_api_url + "deleteMessage?chat_id={}&message_id={}".format(telegram_chat_id, msg_id)
+        try:
+            if _del < 3: msg_id = int(response_send['result']['message_id']) - 3
+            else: msg_id -= 3
         except: return
-        try: response = post(telegram_api_url_del)
-        except: return
-        response.close()
+        telegram_api_url_del = telegram_api_url + "deleteMessage?chat_id={}&message_id={}".format(telegram_chat_id, msg_id)
+        try:
+            response = post(telegram_api_url_del).json()
+            response.close()
+        except: pass
         for i in range(1,4):
-            if response.json() != {"ok":True, "result":True}: # If deletion fails
-                try: telegram_api_url_del = telegram_api_url + "deleteMessage?chat_id={}&message_id={}".format(telegram_chat_id, msg_id - i)
-                except: return
-                response = post(telegram_api_url_del)
-                response.close()
+            if response != {"ok":True, "result":True}: # If deletion fails
+                telegram_api_url_del = telegram_api_url + "deleteMessage?chat_id={}&message_id={}".format(telegram_chat_id, msg_id - i)
+                try:
+                    response = post(telegram_api_url_del).json()
+                    response.close()
+                except: pass
                 sleep(0.5)
             else: break
 
